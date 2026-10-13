@@ -2,7 +2,11 @@ import { addProfileBadge, removeProfileBadge } from "@api/Badges";
 import { addMemberListDecorator, removeMemberListDecorator } from "@api/MemberListDecorators";
 import { addMessageDecoration, removeMessageDecoration } from "@api/MessageDecorations";
 import { definePluginSettings } from "@api/Settings";
-import { ModalCloseButton, ModalContent, ModalHeader, ModalRoot, ModalSize, openModal } from "@utils/modal";
+import { ModalCloseButton as _ModalCloseButton, ModalContent as _ModalContent, ModalHeader as _ModalHeader, ModalRoot as _ModalRoot, ModalSize, openModal } from "@utils/modal";
+const ModalCloseButton: any = _ModalCloseButton;
+const ModalContent: any = _ModalContent;
+const ModalHeader: any = _ModalHeader;
+const ModalRoot: any = _ModalRoot;
 import definePlugin, { OptionType, StartAt } from "@utils/types";
 import { findStoreLazy, wreq } from "@webpack";
 import { Button, ChannelStore, FluxDispatcher, GuildStore, MessageStore, React, RestAPI, SelectedChannelStore, TextInput, Toasts, UserStore } from "@webpack/common";
@@ -95,12 +99,28 @@ function load(): State {
 
 let state: State = load();
 
+const active = () => state.instances.find(i => i.id === state.activeId) ?? state.instances[0];
+
+const syncGlobalInstanceSwitcher = () => {
+    (window as any).__instanceSwitcher = {
+        active,
+        isFoss: () => {
+            const a = active();
+            return !a.builtin && !!a.foss;
+        },
+        isDiscord: () => {
+            const a = active();
+            return a.id === "discord" || !a.env;
+        }
+    };
+};
+syncGlobalInstanceSwitcher();
+
 function commit(next: State) {
     state = next;
     LS?.setItem(KEY, JSON.stringify(next));
+    syncGlobalInstanceSwitcher();
 }
-
-const active = () => state.instances.find(i => i.id === state.activeId) ?? state.instances[0];
 
 function snapshot(ls: Storage): Store {
     const out: Store = {};
@@ -200,7 +220,7 @@ const log = (...a: any[]) => console.log("[InstanceSwitcher]", ...a);
 
 const toast = (message: string, failure = false) => {
     try {
-        Toasts.show({ message, id: Toasts.genId(), type: failure ? Toasts.Type.FAILURE : Toasts.Type.MESSAGE });
+        (Toasts as any).show?.({ message, id: (Toasts as any).genId?.(), type: failure ? (Toasts as any).Type?.FAILURE : (Toasts as any).Type?.MESSAGE });
     } catch {
         return;
     }
@@ -926,7 +946,7 @@ function Switcher({ onClose }: { onClose: () => void; }) {
                 checked={addFoss}
                 onChange={setAddFoss}
             />
-            <div style={{ display: "flex", gap: 6 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                 {Object.entries(PRESETS).map(([label, host]) => (
                     <Button
                         key={label}
@@ -937,6 +957,13 @@ function Switcher({ onClose }: { onClose: () => void; }) {
                         + Discord {label}
                     </Button>
                 ))}
+                <Button
+                    size={Button.Sizes.SMALL}
+                    color={Button.Colors.BRAND}
+                    onClick={() => openOfficialInstancesModal(refresh)}
+                >
+                    🌐 Lista oficial de instancias
+                </Button>
             </div>
 
             <Disclosure label="Import / export instances" open={ioOpen} onToggle={() => setIoOpen(!ioOpen)} />
@@ -971,6 +998,338 @@ function Switcher({ onClose }: { onClose: () => void; }) {
     );
 }
 
+interface OfficialInstance {
+    id: string;
+    name: string;
+    url: string;
+    source_url?: string | null;
+    icon?: string;
+}
+
+const OFFICIAL_INSTANCES_ENDPOINT = "https://raw.githubusercontent.com/meowcorded/meowcord/main/instances.json";
+
+const DEFAULT_OFFICIAL_INSTANCES: OfficialInstance[] = [
+    { id: "chat.femboy.cyou", name: "FemCord", url: "https://chat.femboy.cyou", source_url: "https://github.com/femcord" },
+    { id: "catcord.dev", name: "Catcord", url: "https://catcord.dev", source_url: "https://github.com/braidenhxyz/meowcord" },
+    { id: "tabaque.lol", name: "Tabaque", url: "https://tabaque.lol", source_url: "https://github.com/PoZorKino/tabaque" },
+    { id: "bun.social", name: "Buncord", url: "https://bun.social", source_url: "https://github.com/april83c/meowcord-patches" },
+    { id: "fleep.space", name: "Fleep", url: "https://fleep.space", source_url: "https://github.com/sy62e/dihcord" },
+    { id: "meow.soccera.uk", name: "Meowcerra", url: "https://meow.soccera.uk", source_url: "https://github.com/soccera1/meowcord" },
+    { id: "ang.taild5450d.ts.net", name: "idkcord", url: "https://ang.taild5450d.ts.net", source_url: "https://github.com/anamelessguy1/meowcord" },
+    { id: "cord.yuri.llc", name: "Yuricord", url: "https://cord.yuri.llc", source_url: "https://github.com/hazelcaffe/meowcord" },
+    { id: "orcbin.com", name: "ORCBin", url: "https://orcbin.com", source_url: null },
+    { id: "solarcord.xyz", name: "Solarcord", url: "https://solarcord.xyz", source_url: null },
+    { id: "voidcord.lab-xp.ovh", name: "Voidcord", url: "https://voidcord.lab-xp.ovh", source_url: "https://github.com/NixLeVrai/voidcord" },
+    { id: "cord.area12.lol", name: "12Cord", url: "https://cord.area12.lol", source_url: null },
+    { id: "gazeee.xyz", name: "Gacord", url: "https://gazeee.xyz", source_url: null },
+    { id: "meowcord.m5rcel.com", name: "m5rcord", url: "https://meowcord.m5rcel.com", source_url: null },
+    { id: "chat.nandroserver.duckdns.org", name: "NandroChat", url: "https://chat.nandroserver.duckdns.org", source_url: null },
+    { id: "termcord.linux-user.fyi", name: "Termcord", url: "https://termcord.linux-user.fyi", source_url: null },
+    { id: "dc.polo.beer", name: "Hola Quetal", url: "https://dc.polo.beer", source_url: null },
+    { id: "chat.gtdmc.org", name: "GTDcord", url: "https://chat.gtdmc.org", source_url: null }
+];
+
+function findExistingInstance(item: OfficialInstance): Instance | undefined {
+    const d = deriveEnv(item.url);
+    const targetHost = (d ? d.host : item.url.replace(/^https?:\/\//i, "").replace(/\/.*$/, "")).toLowerCase();
+    const targetApi = d ? d.env.API_ENDPOINT.toLowerCase() : "";
+    return state.instances.find(i => {
+        if (!i.env) return false;
+        if (targetApi && i.env.API_ENDPOINT?.toLowerCase() === targetApi) return true;
+        if (hostOf(i).toLowerCase() === targetHost) return true;
+        return false;
+    });
+}
+
+function addOfficialInstance(item: OfficialInstance, notify = true): boolean {
+    const d = deriveEnv(item.url);
+    if (!d) {
+        if (notify) toast(`Error con la URL de ${item.name}`, true);
+        return false;
+    }
+    const existing = findExistingInstance(item);
+    if (existing) {
+        if (notify) toast(`${item.name} ya está en tu lista`);
+        return false;
+    }
+    const newInst: Instance = {
+        id: crypto.randomUUID(),
+        name: item.name,
+        env: d.env,
+        icon: item.icon || `${item.url.replace(/\/+$/, "")}/favicon.ico`,
+        foss: true
+    };
+    commit({ ...state, instances: [...state.instances, newInst] });
+    if (notify) toast(`✓ Añadida instancia: ${item.name}`);
+    return true;
+}
+
+function addAllOfficialInstances(list: OfficialInstance[]) {
+    let count = 0;
+    const addedList: Instance[] = [];
+    for (const item of list) {
+        const d = deriveEnv(item.url);
+        if (!d) continue;
+        const targetHost = d.host.toLowerCase();
+        const targetApi = d.env.API_ENDPOINT.toLowerCase();
+        const already = [...state.instances, ...addedList].some(i => {
+            if (!i.env) return false;
+            return i.env.API_ENDPOINT?.toLowerCase() === targetApi || hostOf(i).toLowerCase() === targetHost;
+        });
+        if (!already) {
+            addedList.push({
+                id: crypto.randomUUID(),
+                name: item.name,
+                env: d.env,
+                icon: item.icon || `${item.url.replace(/\/+$/, "")}/favicon.ico`,
+                foss: true
+            });
+            count++;
+        }
+    }
+    if (addedList.length > 0) {
+        commit({ ...state, instances: [...state.instances, ...addedList] });
+        toast(`Se añadieron ${count} instancias a tu lista`);
+    } else {
+        toast("Todas las instancias ya estaban en tu lista");
+    }
+}
+
+async function pingUrl(url: string): Promise<boolean> {
+    const d = deriveEnv(url);
+    if (!d) return false;
+    return ping({ id: "check", name: "check", env: d.env });
+}
+
+function OfficialInstancesList({ onClose, onUpdate }: { onClose: () => void; onUpdate?: () => void; }) {
+    const [instances, setInstances] = React.useState<OfficialInstance[]>(DEFAULT_OFFICIAL_INSTANCES);
+    const [query, setQuery] = React.useState("");
+    const [loading, setLoading] = React.useState(false);
+    const [onlineStatus, setOnlineStatus] = React.useState<Record<string, boolean>>({});
+    const [, bump] = React.useState(0);
+    const refresh = () => {
+        bump(n => n + 1);
+        onUpdate?.();
+    };
+
+    const fetchOfficialList = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch(OFFICIAL_INSTANCES_ENDPOINT);
+            if (res.ok) {
+                const data: OfficialInstance[] = await res.json();
+                if (Array.isArray(data) && data.length) {
+                    const merged = [...data];
+                    for (const def of DEFAULT_OFFICIAL_INSTANCES) {
+                        if (!merged.some(m => m.url.toLowerCase() === def.url.toLowerCase() || m.id === def.id)) {
+                            merged.unshift(def);
+                        }
+                    }
+                    setInstances(merged);
+                    toast(`Cargadas ${merged.length} instancias oficiales`);
+                }
+            }
+        } catch (e) {
+            console.warn("[InstanceSwitcher] Error fetching official instances:", e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    React.useEffect(() => {
+        fetchOfficialList();
+    }, []);
+
+    React.useEffect(() => {
+        instances.forEach(item => {
+            pingUrl(item.url).then(ok => setOnlineStatus(prev => ({ ...prev, [item.id]: ok })));
+        });
+    }, [instances]);
+
+    const filtered = instances.filter(i =>
+        i.name.toLowerCase().includes(query.toLowerCase()) ||
+        i.url.toLowerCase().includes(query.toLowerCase()) ||
+        i.id.toLowerCase().includes(query.toLowerCase())
+    );
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingBottom: 16, color: C.text }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                    <TextInput
+                        value={query}
+                        placeholder="Buscar instancia por nombre o URL..."
+                        onChange={(v: string) => setQuery(v)}
+                    />
+                </div>
+                <Button
+                    size={Button.Sizes.SMALL}
+                    color={Button.Colors.PRIMARY}
+                    onClick={fetchOfficialList}
+                    disabled={loading}
+                >
+                    {loading ? "Actualizando…" : "🔄 Actualizar lista"}
+                </Button>
+                <Button
+                    size={Button.Sizes.SMALL}
+                    color={Button.Colors.BRAND}
+                    onClick={() => {
+                        addAllOfficialInstances(instances);
+                        refresh();
+                    }}
+                >
+                    + Añadir todas
+                </Button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: "60vh", overflowY: "auto", paddingRight: 4 }}>
+                {filtered.map(item => {
+                    const existing = findExistingInstance(item);
+                    const isCur = existing ? existing.id === state.activeId : false;
+                    const isOnline = onlineStatus[item.id];
+                    return (
+                        <div
+                            key={item.id}
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                padding: "10px 14px",
+                                borderRadius: 8,
+                                background: C.row,
+                                border: `1px solid ${isCur ? C.brand : C.border}`,
+                                gap: 12
+                            }}
+                        >
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+                                <span
+                                    title={isOnline === undefined ? "Comprobando…" : isOnline ? "En línea" : "Inalcanzable"}
+                                    style={{
+                                        flexShrink: 0,
+                                        width: 10,
+                                        height: 10,
+                                        borderRadius: "50%",
+                                        background: isOnline === undefined ? C.muted : isOnline ? C.green : C.red,
+                                        boxShadow: isOnline ? `0 0 6px ${C.green}` : "none"
+                                    }}
+                                />
+                                <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        <span style={{ fontWeight: 600, color: C.header, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                            {item.name}
+                                        </span>
+                                        <span
+                                            style={{
+                                                fontSize: 10,
+                                                fontWeight: 700,
+                                                padding: "1px 6px",
+                                                borderRadius: 999,
+                                                background: C.green,
+                                                color: "#fff"
+                                            }}
+                                            title="FossCORD / Meowcord: E2EE habilitado"
+                                        >
+                                            E2EE
+                                        </span>
+                                        {isCur && (
+                                            <span
+                                                style={{
+                                                    fontSize: 10,
+                                                    fontWeight: 700,
+                                                    padding: "1px 6px",
+                                                    borderRadius: 999,
+                                                    background: C.brand,
+                                                    color: "#fff"
+                                                }}
+                                            >
+                                                Conectado
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div style={{ display: "flex", gap: 10, fontSize: 12, color: C.muted, marginTop: 2 }}>
+                                        <a
+                                            href={item.url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            style={{ color: C.brand, textDecoration: "none" }}
+                                            onClick={(e: any) => e.stopPropagation()}
+                                        >
+                                            {item.url}
+                                        </a>
+                                        {item.source_url && (
+                                            <a
+                                                href={item.source_url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                style={{ color: C.muted, textDecoration: "none" }}
+                                                onClick={(e: any) => e.stopPropagation()}
+                                            >
+                                                Código fuente ↗
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+                                {existing ? (
+                                    <>
+                                        <span style={{ fontSize: 12, color: C.green, fontWeight: 600 }}>✓ Añadida</span>
+                                        {!isCur && (
+                                            <Button
+                                                size={Button.Sizes.SMALL}
+                                                color={Button.Colors.PRIMARY}
+                                                onClick={() => {
+                                                    onClose();
+                                                    switchTo(existing.id);
+                                                }}
+                                            >
+                                                Conectar
+                                            </Button>
+                                        )}
+                                    </>
+                                ) : (
+                                    <Button
+                                        size={Button.Sizes.SMALL}
+                                        color={Button.Colors.BRAND}
+                                        onClick={() => {
+                                            addOfficialInstance(item);
+                                            refresh();
+                                        }}
+                                    >
+                                        + Añadir
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+function openOfficialInstancesModal(onUpdate?: () => void) {
+    openModal(props => (
+        <ModalRoot {...props} size={ModalSize.LARGE}>
+            <ModalHeader>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: C.header }}>
+                        Lista oficial de instancias
+                    </div>
+                    <div style={{ fontSize: 13, color: C.muted, marginTop: 2 }}>
+                        Instancias oficiales y comunitarias de Meowcord. Añádelas a tu lista con un solo clic.
+                    </div>
+                </div>
+                <ModalCloseButton onClick={props.onClose} />
+            </ModalHeader>
+            <ModalContent>
+                <OfficialInstancesList onClose={props.onClose} onUpdate={onUpdate} />
+            </ModalContent>
+        </ModalRoot>
+    ));
+}
+
 function openSwitcher() {
     openModal(props => (
         <ModalRoot {...props} size={ModalSize.MEDIUM}>
@@ -981,6 +1340,14 @@ function openSwitcher() {
                         Choose the backend this app connects to. Each one keeps its own login.
                     </div>
                 </div>
+                <Button
+                    size={Button.Sizes.SMALL}
+                    color={Button.Colors.BRAND}
+                    style={{ marginRight: 8 }}
+                    onClick={() => openOfficialInstancesModal()}
+                >
+                    🌐 Lista oficial
+                </Button>
                 <ModalCloseButton onClick={props.onClose} />
             </ModalHeader>
             <ModalContent>
@@ -1025,7 +1392,12 @@ function SettingsPanel() {
                     <span style={{ fontSize: 14, fontWeight: 700, color: C.header }}>Instances</span>
                     <span style={{ fontSize: 12, color: C.muted }}>Add, edit and switch servers. Shortcut: Ctrl+Alt+I</span>
                 </span>
-                <Button onClick={() => openSwitcher()}>Open switcher</Button>
+                <div style={{ display: "flex", gap: 8 }}>
+                    <Button color={Button.Colors.BRAND} onClick={() => openOfficialInstancesModal()}>
+                        🌐 Lista oficial de instancias
+                    </Button>
+                    <Button onClick={() => openSwitcher()}>Open switcher</Button>
+                </div>
             </div>
 
             <SettingsSection title="On other servers">
@@ -1872,7 +2244,7 @@ async function decryptToBlobUrl(entry: any): Promise<string> {
     if (!res.ok) throw new Error(`download answered ${res.status}`);
     const cipher = new Uint8Array(await res.arrayBuffer());
     if (cipher.length > MAX_FILE_BYTES) throw new Error("file is too large to decrypt in the client");
-    const key = await crypto.subtle.importKey("raw", fromB64u(entry.key), { name: "AES-GCM" }, false, ["decrypt"]);
+    const key = await crypto.subtle.importKey("raw", fromB64u(entry.key) as any, { name: "AES-GCM" }, false, ["decrypt"]);
     const iv = fromB64u(entry.iv);
     const step = FILE_CHUNK + 16;
     const count = Math.max(1, Math.ceil(cipher.length / step));
@@ -1882,7 +2254,7 @@ async function decryptToBlobUrl(entry: any): Promise<string> {
         const view = new DataView(nonce.buffer);
         view.setUint32(8, (view.getUint32(8) ^ i) >>> 0);
         const aad = new TextEncoder().encode(`fosscord-e2ee/v1/file\n${i}\n${i === count - 1 ? 1 : 0}`);
-        parts.push(await crypto.subtle.decrypt({ name: "AES-GCM", iv: nonce, additionalData: aad }, key, cipher.subarray(i * step, (i + 1) * step)));
+        parts.push(await crypto.subtle.decrypt({ name: "AES-GCM", iv: nonce, additionalData: aad as any }, key, cipher.subarray(i * step, (i + 1) * step) as any));
     }
     return URL.createObjectURL(new Blob(parts, { type: entry.content_type || "application/octet-stream" }));
 }

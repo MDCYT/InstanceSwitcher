@@ -1,17 +1,24 @@
 <div align="center">
 
-# 🔄 InstanceSwitcher
+# 🔄 InstanceSwitcher (Meowcord Edition)
 
 ### *The definitive multi-instance workspace engine for Vencord & Equicord.*
 
 Connect your native Discord client to **Spacebar, FossCORD, MeowCORD**, and self-hosted Discord-compatible instances — without sacrificing your client mods, custom themes, or core settings.
 
+> [!NOTE]
+> **Fork Notice:** This repository is an enhanced fork of the original [braidenhxyz/InstanceSwitcher](https://github.com/braidenhxyz/InstanceSwitcher) by **braidenhxyz**.  
+> Features added in this fork:
+> - 🌐 **Lista Oficial de Instancias**: Direct integration with the [Meowcord Instances Directory](https://github.com/meowcorded/meowcord/blob/main/instances.json) to browse, ping, and 1-click import official community instances (including FemCord, Catcord, Tabaque, and more) with automatic FossCORD/E2EE configuration.
+> - 🛡️ **Smooth E2EE & Official Discord Guard**: Prevents message send blocking on unencrypted instances like official Discord Canary.
+
+[![Fork of braidenhxyz/InstanceSwitcher](https://img.shields.io/badge/Fork%20of-braidenhxyz%2FInstanceSwitcher-blue?style=for-the-badge&logo=github)](https://github.com/braidenhxyz/InstanceSwitcher)
 [![Vencord Compatible](https://img.shields.io/badge/Vencord-Userplugin-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://vencord.dev)
 [![Equicord Compatible](https://img.shields.io/badge/Equicord-Userplugin-7289DA?style=for-the-badge&logo=discord&logoColor=white)](https://equicord.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
-[Overview](#-overview) • [Features](#-features) • [Installation](#-installation) • [Usage Guide](#️-usage-guide) • [E2EE](#-end-to-end-encryption-fosscord--meowcord) • [Configuration](#️-configuration) • [Architecture](#️-architecture) • [Troubleshooting](#️-troubleshooting)
+[Overview](#-overview) • [Features](#-features) • [Installation](#-installation) • [Usage Guide](#️-usage-guide) • [Official Instances](#-lista-oficial-de-instancias) • [E2EE](#-end-to-end-encryption-fosscord--meowcord) • [Configuration](#️-configuration) • [Architecture](#️-architecture) • [Troubleshooting](#️-troubleshooting)
 
 </div>
 
@@ -33,6 +40,12 @@ Connect your native Discord client to **Spacebar, FossCORD, MeowCORD**, and self
 ---
 
 ## ✨ Features
+
+### 🌐 Lista Oficial de Instancias (Meowcord)
+- **1-Click Official Instances Browser** — Dedicated modal and button that fetches official Meowcord instances directly from [`meowcord/instances.json`](https://github.com/meowcorded/meowcord/blob/main/instances.json).
+- **Live Health Status** — Real-time ping indicators showing whether an instance is reachable.
+- **One-Click Import** — Automatically calculates and configures API, Gateway, CDN endpoints, and enables FossCORD E2EE.
+- **Batch Add** — "Añadir todas" button to import all missing community instances in a single click.
 
 ### 🔀 Multi-Instance Management
 
@@ -129,6 +142,23 @@ Click **Add Instance** and enter your server's base URL. Standard routes resolve
 
 - **No cross-contamination** — Logging out of an instance purges its saved tokens locally without invalidating server-side sessions.
 - **Safe import/export** — Export configuration profiles as plain JSON. Tokens and credentials are **never** included in exports.
+
+---
+
+## 🌐 Lista Oficial de Instancias
+
+Añade servidores compatibles de Meowcord sin tener que escribir ni configurar manualmente las URLs y sockets:
+
+1. Abre el switcher (`Ctrl+Alt+I`) o ve a **Ajustes → InstanceSwitcher**.
+2. Haz clic en el botón **🌐 Lista oficial de instancias**.
+3. Se abrirá la lista con las instancias comunitarias de Meowcord (sincronizada en vivo desde el [repositorio oficial de meowcord](https://github.com/meowcorded/meowcord/blob/main/instances.json)):
+   - **FemCord** (`chat.femboy.cyou`)
+   - **Catcord** (`catcord.dev`)
+   - **Tabaque** (`tabaque.lol`)
+   - **Buncord** (`bun.social`)
+   - **Solarcord**, **Voidcord**, **Yuricord**, **12Cord**, **Fleep**, **Meowcerra**, etc.
+4. Cada instancia muestra su estado de conexión en vivo (verde si está online, rojo si está caída).
+5. Haz clic en **+ Añadir** en cualquier instancia para agregarla de inmediato, o usa el botón **+ Añadir todas** para agregar todas las instancias disponibles de una vez.
 
 ---
 
